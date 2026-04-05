@@ -45,14 +45,34 @@ const socialLinks = [
 ];
 
 export function Contact() {
-  const [formState, setFormState] = useState<"idle" | "sending" | "success">("idle");
+  const [formState, setFormState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [fields, setFields] = useState({ name: "", email: "", budget: "", message: "" });
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFields((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormState("sending");
-    setTimeout(() => {
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send.");
       setFormState("success");
-    }, 2000);
+      setFields({ name: "", email: "", budget: "", message: "" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setErrorMsg(msg);
+      setFormState("error");
+    }
   };
 
   return (
@@ -177,6 +197,9 @@ export function Contact() {
                     <label className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">Your Name</label>
                     <input
                       type="text"
+                      name="name"
+                      value={fields.name}
+                      onChange={handleChange}
                       placeholder="e.g. Alex Johnson"
                       required
                       className="bg-transparent border-b border-white/10 py-3 focus:border-primary transition-all outline-none text-white text-sm placeholder:text-white/15 font-light"
@@ -186,6 +209,9 @@ export function Contact() {
                     <label className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">Email Address</label>
                     <input
                       type="email"
+                      name="email"
+                      value={fields.email}
+                      onChange={handleChange}
                       placeholder="you@company.com"
                       required
                       className="bg-transparent border-b border-white/10 py-3 focus:border-primary transition-all outline-none text-white text-sm placeholder:text-white/15 font-light"
@@ -195,20 +221,28 @@ export function Contact() {
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">Project Budget</label>
-                  <select className="bg-transparent border-b border-white/10 py-3 focus:border-primary transition-all outline-none text-white/50 text-sm font-light appearance-none cursor-pointer hover:text-white">
+                  <select
+                    name="budget"
+                    value={fields.budget}
+                    onChange={handleChange}
+                    className="bg-transparent border-b border-white/10 py-3 focus:border-primary transition-all outline-none text-white/50 text-sm font-light appearance-none cursor-pointer hover:text-white"
+                  >
                     <option value="" className="bg-[#0a0a0a]">Select a range...</option>
-                    <option value="small" className="bg-[#0a0a0a]">Under ₹50,000</option>
-                    <option value="medium" className="bg-[#0a0a0a]">₹50k – ₹2L</option>
-                    <option value="large" className="bg-[#0a0a0a]">₹2L – ₹5L</option>
-                    <option value="enterprise" className="bg-[#0a0a0a]">₹5L+ / Enterprise</option>
-                    <option value="discuss" className="bg-[#0a0a0a]">Let&apos;s discuss</option>
+                    <option value="Under ₹50,000" className="bg-[#0a0a0a]">Under ₹50,000</option>
+                    <option value="₹50k – ₹2L" className="bg-[#0a0a0a]">₹50k – ₹2L</option>
+                    <option value="₹2L – ₹5L" className="bg-[#0a0a0a]">₹2L – ₹5L</option>
+                    <option value="₹5L+ / Enterprise" className="bg-[#0a0a0a]">₹5L+ / Enterprise</option>
+                    <option value="Let's discuss" className="bg-[#0a0a0a]">Let&apos;s discuss</option>
                   </select>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] uppercase font-bold tracking-[0.3em] text-white/30">Tell Me About Your Project</label>
                   <textarea
+                    name="message"
                     rows={4}
+                    value={fields.message}
+                    onChange={handleChange}
                     placeholder="What are you building? What's the timeline? What problem does it solve?"
                     required
                     className="bg-transparent border-b border-white/10 py-3 focus:border-primary transition-all outline-none text-white text-sm resize-none placeholder:text-white/15 font-light"
@@ -217,16 +251,22 @@ export function Contact() {
 
                 <button
                   type="submit"
-                  disabled={formState !== "idle"}
+                  disabled={formState === "sending" || formState === "success"}
                   className="w-full relative group h-14 bg-primary text-black font-bold uppercase tracking-[0.3em] text-xs transition-all hover:bg-accent flex items-center justify-center gap-3 overflow-hidden rounded-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span className="relative z-10 flex items-center gap-3">
-                    {formState === "idle" && <><Send size={14} /> Send Message</>}
+                    {(formState === "idle" || formState === "error") && <><Send size={14} /> Send Message</>}
                     {formState === "sending" && <span className="animate-pulse">Sending your message...</span>}
                     {formState === "success" && <><CheckCircle size={14} /> Message received — I&apos;ll be in touch!</>}
                   </span>
                   <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                 </button>
+
+                {formState === "error" && (
+                  <p className="text-center text-[10px] text-red-400/70 font-mono">
+                    ⚠ {errorMsg}
+                  </p>
+                )}
 
                 <p className="text-center text-[10px] text-white/20 font-mono">
                   No spam. No cold pitches. Just real conversations.
